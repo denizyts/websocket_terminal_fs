@@ -4,20 +4,26 @@ const path = require("path");
 const WebSocket = require("ws");
 const pty = require("node-pty");
 const crypto = require('crypto');
+const fs = require("fs");
+const archiver = require("archiver");
+const mime = require("mime");
+
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ noServer: true }); // Tek WS server
+
+const ROOT_DIR = __dirname; // File Manager root
+const tokens = new Set();
 
 app.use(express.static(path.join(__dirname, "public")));
 
-const tokens = new Set();
-
+// LOGIN
 app.get("/login", (req, res) => {
   const { user, pass } = req.query;
-  let expectedUsername = 'a21659155516ac22dfc7a1afa749060ab8afa638a88513ab345b4fbb6ca49d56';
-  let expectedPassword = '8af19114f54fb09d82efaec66e5266017bad83add3c894929e1531171f4271de';  
-  let hashedUsername = crypto.createHash('sha256').update(user).digest('hex');
-  let hashedPassword = crypto.createHash('sha256').update(pass).digest('hex');
+  const expectedUsername = 'a21659155516ac22dfc7a1afa749060ab8afa638a88513ab345b4fbb6ca49d56';
+  const expectedPassword = '8af19114f54fb09d82efaec66e5266017bad83add3c894929e1531171f4271de';  
+  const hashedUsername = crypto.createHash('sha256').update(user).digest('hex');
+  const hashedPassword = crypto.createHash('sha256').update(pass).digest('hex');
 
   if (hashedUsername === expectedUsername && hashedPassword === expectedPassword) {
     const token = Math.random().toString(36).substring(2);
@@ -27,26 +33,118 @@ app.get("/login", (req, res) => {
   res.send({ success: false });
 });
 
-wss.on("connection", (ws, req) => {
-  const params = new URLSearchParams(req.url.replace("/?", ""));
-  const token = params.get("token");
+// Upgrade WS bağlantısı
+server.on("upgrade", (request, socket, head) => {
+  const urlParams = new URLSearchParams(request.url.replace("/?", ""));
+  const token = urlParams.get("token");
+  const type = urlParams.get("type"); // terminal veya filemanager
 
   if (!tokens.has(token)) {
-    ws.close(1008, "Invalid token");
-    return; 
+    socket.destroy();
+    return;
   }
 
+  wss.handleUpgrade(request, socket, head, ws => {
+    if (type === "terminal") handleTerminalWS(ws);
+    else if (type === "filemanager") handleFileManagerWS(ws);
+  });
+});
+
+// Terminal WS
+function handleTerminalWS(ws) {
   const shell = pty.spawn("bash", [], {
     name: "xterm-color",
     cols: 150,
     rows: 60,
-    cwd: __dirname,
+    cwd: ROOT_DIR,
     env: process.env
   });
 
   shell.on("data", (data) => ws.send(data));
   ws.on("message", (msg) => shell.write(msg));
   ws.on("close", () => shell.kill());
+}
+
+// File Manager WS
+function handleFileManagerWS(ws) {
+  ws.on("message", msg => {
+    const data = JSON.parse(msg);
+    if (data.type === "list") sendList(ws, data.path || ".");
+    if (data.type === "download") handleDownload(ws, data.path);
+    if (data.type === "upload") handleUpload(ws, data.path, data.filename, data.content);
+    if (data.type === "delete") handleDelete(ws, data.path);
+    if (data.type === "deleteMany") handleDeleteMany(ws, data.paths);
+  });
+}
+
+// Yardımcılar
+function sendList(ws, dirPath) {
+  fs.readdir(path.join(ROOT_DIR, dirPath), { withFileTypes: true }, (err, files) => {
+    if (err) return;
+    ws.send(JSON.stringify({
+      type: "list",
+      path: dirPath,
+      files: files.map(f => ({ name: f.name, isDir: f.isDirectory() }))
+    }));
+  });
+}
+
+function handleDownload(ws, filePath) {
+  const fullPath = path.join(ROOT_DIR, filePath);
+  fs.stat(fullPath, (err, stats) => {
+    if (err) return;
+    if (stats.isFile()) {
+      fs.readFile(fullPath, (err, content) => {
+        if (err) return;
+        ws.send(JSON.stringify({ type: "download", filename: path.basename(fullPath), content: content.toString("base64") }));
+      });
+    } else if (stats.isDirectory()) {
+      const zipPath = fullPath + ".zip";
+      const output = fs.createWriteStream(zipPath);
+      const archive = archiver("zip", { zlib: { level: 9 } });
+      output.on("close", () => {
+        fs.readFile(zipPath, (err, content) => {
+          if (err) return;
+          ws.send(JSON.stringify({ type: "download", filename: path.basename(fullPath) + ".zip", content: content.toString("base64") }));
+          fs.unlink(zipPath, () => {});
+        });
+      });
+      archive.pipe(output);
+      archive.directory(fullPath, false);
+      archive.finalize();
+    }
+  });
+}
+
+function handleUpload(ws, dirPath, filename, base64) {
+  const buffer = Buffer.from(base64, "base64");
+  const fullDir = path.join(ROOT_DIR, dirPath);
+  const fullFile = path.join(fullDir, filename);
+  fs.mkdir(fullDir, { recursive: true }, (err) => {
+    if (err) return ws.send(JSON.stringify({ type: "error", message: err.message }));
+    fs.writeFile(fullFile, buffer, (err) => {
+      if (err) return ws.send(JSON.stringify({ type: "error", message: err.message }));
+      ws.send(JSON.stringify({ type: "upload", status: "ok" }));
+      sendList(ws, dirPath);
+    });
+  });
+}
+
+function handleDelete(ws, filePath) {
+  const fullPath = path.join(ROOT_DIR, filePath);
+  fs.rm(fullPath, { recursive: true, force: true }, err => {
+    if (err) return ws.send(JSON.stringify({ type: "error", message: err.message }));
+    sendList(ws, path.dirname(filePath));
+  });
+}
+
+function handleDeleteMany(ws, paths) {
+  paths.forEach(p => fs.rmSync(path.join(ROOT_DIR, p), { recursive: true, force: true }));
+  sendList(ws, path.dirname(paths[0]));
+}
+
+app.get("/", (req, res) => {
+  res.redirect("/login.html");
 });
 
-server.listen(3000, () => console.log("http://localhost:3000"));
+server.listen(3000, () => console.log("Server running at http://localhost:3000"));

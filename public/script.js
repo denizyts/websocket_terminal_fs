@@ -1,97 +1,17 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-  <meta charset="UTF-8">
-  <title>Dual File Explorer</title>
-  <style>
-    body {
-      display: flex;
-      gap: 20px;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #121212;
-      margin: 0;
-      padding: 20px;
-      height: 100vh;
-      box-sizing: border-box;
-      color: #e0e0e0;
-    }
-    .panel {
-      flex: 1;
-      background: #1e1e1e;
-      border-radius: 16px;
-      padding: 20px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      transition: transform 0.2s, box-shadow 0.2s; 
-    }
-    .panel:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.6); }
-    h3 { margin-top: 0; border-bottom: 2px solid #37474f; padding-bottom: 12px; font-weight: 700; color: #80cbc4; font-size: 1.3rem; }
-    .search-input {
-      padding: 8px 12px; border-radius: 8px; border: 1px solid #37474f; margin-bottom: 10px;
-      font-size: 0.95rem; outline: none; background: #2c2c2c; color: #e0e0e0;
-    }
-    .search-input:focus { border-color: #80cbc4; }
-    .file-input-wrapper { position: relative; margin-bottom: 15px; }
-    .file-input-wrapper input[type="file"] { opacity: 0; width: 100%; height: 40px; position: absolute; cursor: pointer; }
-    .file-input-label {
-      display: block; background: #4800ff; color: white; text-align: center; padding: 10px;
-      border-radius: 8px; cursor: pointer; font-weight: 500; transition: background 0.2s;
-    }
-    .file-input-label:hover { background: #00796b; }
-    ul { list-style: none; padding: 0; margin: 0; flex: 1; overflow-y: auto; border-top: 1px solid #37474f; margin-top: 10px; }
-    li {
-      cursor: pointer; padding: 10px 14px; border-radius: 8px; transition: background 0.2s, color 0.2s;
-      display: flex; align-items: center; justify-content: space-between; color: #e0e0e0;
-      margin-bottom: 4px; background: #2c2c2c;
-    }
-    li:hover { background: #37474f; }
-    li.directory { font-weight: 600; color: #a2ff01f0; }
-    li span { margin-left: 8px; font-size: 0.9rem; }
-    li.selected { background: #00695c !important; color: #ffffff; }
-    ul::-webkit-scrollbar { width: 8px; }
-    ul::-webkit-scrollbar-track { background: #1e1e1e; border-radius: 4px; }
-    ul::-webkit-scrollbar-thumb { background-color: #616161; border-radius: 4px; }
-    button {
-      padding: 8px 14px; border: none; border-radius: 8px; background: #ff0088;
-      color: white; font-weight: 500; cursor: pointer; transition: background 0.2s, transform 0.1s;
-    }
-    button:hover { background: #00796b; transform: translateY(-2px); }
-    li button { padding: 4px 8px; font-size: 0.8rem; background: #00ffe1; }
-    li button:hover { background: #009688; }
-    .actions { display: flex; gap: 10px; margin: 10px 0; }
-  </style>
-</head>
-<body>
-  <div class="panel">
-    <h3>Local Files</h3>
-    <div class="file-input-wrapper">
-      <label class="file-input-label" for="localPicker">Choose File</label>
-      <input type="file" id="localPicker" webkitdirectory directory multiple>
-    </div>
-    <ul id="localFiles"></ul>
-    <button id="uploadAllBtn" style="margin-top:10px;">Upload all</button>
-  </div>
-
-  <div class="panel">
-    <h3>Remote Files</h3>
-    <input type="text" id="remoteSearch" class="search-input" placeholder="Search files">
-    <div class="actions">
-      <button id="downloadSelectedBtn">Seçileni İndir</button>
-      <button id="deleteSelectedBtn">Seçileni Sil</button>
-    </div>
-    <ul id="remoteFiles"></ul>
-  </div>
-
-  <script>
-    const ws = new WebSocket("ws://localhost:8080");
     const remoteList = document.getElementById("remoteFiles");
     const localList = document.getElementById("localFiles");
     const remoteSearch = document.getElementById("remoteSearch");
     let uploadPath = ".";
     let remoteFilesCache = [];
     let selectedFiles = new Set();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get("token");
+    if (!token) {
+      alert("Token missing! Go back to login.");
+      window.location.href = "login.html";
+    }
+    const ws = new WebSocket(`ws://${location.host}/?token=${token}&type=filemanager`);
 
     ws.onopen = () => ws.send(JSON.stringify({ type: "list", path: "." }));
 
@@ -122,11 +42,10 @@
         nameSpan.textContent = f.name;
         if (f.isDir) li.classList.add("directory");
 
-        // 👇 SEÇ butonu
         const selectBtn = document.createElement("button");
-        selectBtn.textContent = "Seç";
+        selectBtn.textContent = "Choose";
         selectBtn.onclick = (e) => {
-          e.stopPropagation(); // içine girmesin
+          e.stopPropagation(); 
           if (li.classList.contains("selected")) {
             li.classList.remove("selected");
             selectedFiles.delete(li.dataset.path);
@@ -162,8 +81,8 @@
 
 
     document.getElementById("deleteSelectedBtn").addEventListener("click", () => {
-      if (selectedFiles.size === 0) return alert("Hiç dosya seçmedin!");
-      if (confirm(`${selectedFiles.size} dosyayı silmek istediğine emin misin?`)) {
+      if (selectedFiles.size === 0) return alert("No file selected!");
+      if (confirm(`${selectedFiles.size} deleting ?`)) {
         ws.send(JSON.stringify({
           type: "deleteMany",
           paths: Array.from(selectedFiles)
@@ -173,7 +92,7 @@
     });
 
     document.getElementById("downloadSelectedBtn").addEventListener("click", () => {
-      if (selectedFiles.size === 0) return alert("Hiç dosya seçmedin!");
+      if (selectedFiles.size === 0) return alert("No file selected!");
       Array.from(selectedFiles).forEach(path => {
         ws.send(JSON.stringify({ type:"download", path }));
       });
@@ -198,7 +117,7 @@
         li.fileRef = file;
 
         const uploadBtn = document.createElement("button");
-        uploadBtn.textContent = "Yükle";
+        uploadBtn.textContent = "Upload";
         uploadBtn.onclick = () => uploadFile(file);
 
         li.appendChild(uploadBtn);
@@ -235,6 +154,21 @@
       const filtered = remoteFilesCache.filter(f => f.name.toLowerCase().includes(term));
       renderRemote(filtered, uploadPath);
     });
-  </script>
-</body>
-</html>
+
+    function chooseFiles() {
+      const input = document.getElementById("localPicker");
+      input.removeAttribute("webkitdirectory");
+      input.removeAttribute("directory");
+      input.click();
+    }
+
+    function chooseFolder() {
+      const input = document.getElementById("localPicker");
+      input.setAttribute("webkitdirectory", "");
+      input.setAttribute("directory", "");
+      input.click();
+    }
+
+    document.getElementById("localPicker").addEventListener("change", e => {
+      renderLocal([...e.target.files]);
+    });
