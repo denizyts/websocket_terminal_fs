@@ -5,17 +5,28 @@
     let remoteFilesCache = [];
     let selectedFiles = new Set();
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get("token");
+
+    const token = window.token || new URLSearchParams(window.location.search).get("token");
+
     if (!token) {
-      alert("Token missing! Go back to login.");
-      window.location.href = "login.html";
+      console.error("File Manager: Token bulunamadı!");
+    } else {
+      console.log("File Manager TOKEN:", token);
     }
-    const ws = new WebSocket(`ws://${location.host}/?token=${token}&type=filemanager`);
 
-    ws.onopen = () => ws.send(JSON.stringify({ type: "list", path: "." }));
+    // File Manager WS
+    const wsFM = new WebSocket(`ws://${location.host}/?token=${token}&type=filemanager`);
 
-    ws.onmessage = e => {
+    wsFM.onopen = () => console.log("File Manager connected!");
+    wsFM.onerror = (err) => console.error("File Manager WS error:", err);
+    wsFM.onmessage = (msg) => {
+      console.log("File Manager Message:", msg.data);
+      // burada zaten gelen dosyaları UI’ye basıyorsun
+    };
+
+    wsFM.onopen = () => wsFM.send(JSON.stringify({ type: "list", path: "." }));
+
+    wsFM.onmessage = e => {
       const data = JSON.parse(e.data);
       if (data.type === "list") {
         remoteFilesCache = data.files;
@@ -33,6 +44,22 @@
     function renderRemote(files, path) {
       uploadPath = path;
       remoteList.innerHTML = "";
+
+      // Eğer üst dizin varsa, ".." ekle
+      if (path !== ".") {
+        const upLi = document.createElement("li");
+        upLi.textContent = "..";
+        upLi.classList.add("directory");
+        upLi.dataset.path = "..";
+        upLi.dataset.isUp = "true"; // üst dizin olduğunu belirtmek
+
+        upLi.onclick = () => {
+          const newPath = path.split("/").slice(0, -1).join("/") || ".";
+          wsFM.send(JSON.stringify({ type: "list", path: newPath }));
+        };
+
+        remoteList.appendChild(upLi);
+      }
 
       files.forEach(f => {
         const li = document.createElement("li");
@@ -58,10 +85,7 @@
         li.onclick = () => {
           if (f.isDir) {
             const newPath = (path === "." ? f.name : path + "/" + f.name);
-            ws.send(JSON.stringify({ 
-              type:"list", 
-              path:f.isUp ? path.split("/").slice(0,-1).join("/") || "." : newPath 
-            }));
+            wsFM.send(JSON.stringify({ type:"list", path:newPath }));
           } else {
             if (li.classList.contains("selected")) {
               li.classList.remove("selected");
@@ -74,16 +98,17 @@
         };
 
         li.appendChild(nameSpan);
-        li.appendChild(selectBtn); // butonu ekle
+        li.appendChild(selectBtn);
         remoteList.appendChild(li);
       });
     }
 
 
+
     document.getElementById("deleteSelectedBtn").addEventListener("click", () => {
       if (selectedFiles.size === 0) return alert("No file selected!");
       if (confirm(`${selectedFiles.size} deleting ?`)) {
-        ws.send(JSON.stringify({
+        wsFM.send(JSON.stringify({
           type: "deleteMany",
           paths: Array.from(selectedFiles)
         }));
@@ -94,7 +119,7 @@
     document.getElementById("downloadSelectedBtn").addEventListener("click", () => {
       if (selectedFiles.size === 0) return alert("No file selected!");
       Array.from(selectedFiles).forEach(path => {
-        ws.send(JSON.stringify({ type:"download", path }));
+        wsFM.send(JSON.stringify({ type:"download", path }));
       });
     });
 
@@ -139,7 +164,7 @@
           ? file.webkitRelativePath.replace(/[^/]+$/, '')
           : '';
         const targetPath = uploadPath === "." ? relativePath : uploadPath + "/" + relativePath;
-        ws.send(JSON.stringify({
+        wsFM.send(JSON.stringify({
           type: "upload",
           path: targetPath,
           filename: file.name,

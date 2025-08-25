@@ -2,9 +2,9 @@ const WebSocket = require("ws");
 const fs = require("fs"); 
 const path = require("path"); 
 const wss = new WebSocket.Server({ port: 8080 }); 
-const ROOT_DIR = __dirname+"/..";
 const archiver = require("archiver"); 
 const mime = require("mime");
+let ROOT_DIR = path.join("/"); 
 
 wss.on("connection", ws => {
     ws.on("message", msg => {

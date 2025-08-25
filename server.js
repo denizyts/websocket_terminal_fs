@@ -10,14 +10,14 @@ const mime = require("mime");
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ noServer: true }); // Tek WS server
+const wss = new WebSocket.Server({ noServer: true }); 
 
-const ROOT_DIR = __dirname; // File Manager root
+// const ROOT_DIR = __dirname; 
+const ROOT_DIR = "/";
 const tokens = new Set();
 
 app.use(express.static(path.join(__dirname, "public")));
 
-// LOGIN
 app.get("/login", (req, res) => {
   const { user, pass } = req.query;
   const expectedUsername = 'a21659155516ac22dfc7a1afa749060ab8afa638a88513ab345b4fbb6ca49d56';
@@ -33,11 +33,10 @@ app.get("/login", (req, res) => {
   res.send({ success: false });
 });
 
-// Upgrade WS bağlantısı
 server.on("upgrade", (request, socket, head) => {
   const urlParams = new URLSearchParams(request.url.replace("/?", ""));
   const token = urlParams.get("token");
-  const type = urlParams.get("type"); // terminal veya filemanager
+  const type = urlParams.get("type"); 
 
   if (!tokens.has(token)) {
     socket.destroy();
@@ -50,7 +49,6 @@ server.on("upgrade", (request, socket, head) => {
   });
 });
 
-// Terminal WS
 function handleTerminalWS(ws) {
   const shell = pty.spawn("bash", [], {
     name: "xterm-color",
@@ -65,7 +63,6 @@ function handleTerminalWS(ws) {
   ws.on("close", () => shell.kill());
 }
 
-// File Manager WS
 function handleFileManagerWS(ws) {
   ws.on("message", msg => {
     const data = JSON.parse(msg);
@@ -77,7 +74,6 @@ function handleFileManagerWS(ws) {
   });
 }
 
-// Yardımcılar
 function sendList(ws, dirPath) {
   fs.readdir(path.join(ROOT_DIR, dirPath), { withFileTypes: true }, (err, files) => {
     if (err) return;

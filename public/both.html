@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Web Terminal & File Manager</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm/css/xterm.css" />
+<style>
+
+#terminal {
+      width: 100%;
+      height: 100%;
+      background: #000;
+      color: #0ff;
+    }
+
+  /* Genel Body */
+body {
+  margin: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, #1d2671, #c33764);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #fff;
+  overflow: hidden;
+}
+
+/* Switch Butonları */
+/* Switch Butonları - Modern Toggle Style */
+#switchBtns {
+  display: inline-flex;
+  border-radius: 50px;
+  overflow: hidden;
+  border: 2px solid rgba(255,255,255,0.3);
+  margin: 15px;
+}
+
+#switchBtns button {
+  flex: 1;
+  padding: 10px 25px;
+  border: none;
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  backdrop-filter: blur(8px);
+}
+
+#switchBtns button:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+#switchBtns button.active {
+  background: linear-gradient(135deg, #00c6ff, #0072ff);
+  color: #fff;
+  box-shadow: 0 4px 15px rgba(0,198,255,0.6);
+  transform: scale(1.05);
+}
+
+
+/* Panel */
+.panel {
+  flex: 1;
+  display: flex;
+  gap: 20px;
+  padding: 20px;
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.55);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(12px);
+  transition: transform 0.2s, box-shadow 0.3s;
+  margin: 15px;
+  overflow: hidden;
+}
+
+/* Terminal Panel */
+#terminalPanel {
+  flex-direction: column;
+}
+
+/* File Manager Sidebar & Main */
+.fm-sidebar-container {
+  display: flex;
+  flex: 1;
+  gap: 20px;
+}
+
+.fm-sidebar, .fm-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: rgba(0,0,0,0.35);
+  border-radius: 20px;
+  padding: 20px;
+  overflow: hidden;
+}
+
+/* Başlık */
+h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  background: linear-gradient(90deg, #00c6ff, #0072ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Search Input */
+.search-input {
+  padding: 12px 15px;
+  border-radius: 12px;
+  border: none;
+  margin-bottom: 15px;
+  font-size: 1rem;
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+  outline: none;
+  transition: all 0.3s;
+}
+.search-input::placeholder { color: rgba(255,255,255,0.6); }
+.search-input:focus {
+  background: rgba(255,255,255,0.2);
+  box-shadow: 0 0 10px rgba(0,198,255,0.6);
+}
+
+/* Dosya Seçim Butonları */
+.file-input-wrapper { display: flex; gap: 10px; flex-wrap: wrap; }
+.file-input-label {
+  flex: 1;
+  text-align: center;
+  background: linear-gradient(135deg, #00c6ff, #0072ff);
+  padding: 12px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.file-input-label:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(0,198,255,0.6);
+}
+
+/* Liste Stilleri */
+ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+li {
+  cursor: pointer;
+  padding: 10px 15px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(0,0,0,0.25);
+  transition: all 0.3s;
+}
+li:hover { background: rgba(0,198,255,0.25); transform: translateX(4px); }
+li.directory { font-weight: 600; color: #00c6ff; }
+li.selected { background: rgba(0,198,255,0.5); }
+
+/* Scrollbar */
+ul::-webkit-scrollbar { width: 8px; }
+ul::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #00c6ff, #0072ff);
+  border-radius: 4px;
+}
+
+/* Butonlar */
+button {
+  padding: 10px 15px;
+  border: none;
+  border-radius: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+button:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(255,64,129,0.6); }
+
+li button {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  background: linear-gradient(135deg, #00c6ff, #0072ff);
+  border-radius: 8px;
+  color: #fff;
+}
+li button:hover { box-shadow: 0 4px 10px rgba(0,198,255,0.5); }
+
+.actions { display: flex; gap: 12px; margin-bottom: 15px; }
+
+/* Scrollbar’ı tam container içine oturt */
+#remoteFiles {
+  overflow-y: auto;
+  padding-bottom: 0; /* Gereksiz boşluğu kaldır */
+  margin-bottom: 0;
+}
+
+/* Scrollbar stilini container sınırları ile eşleştir */
+#remoteFiles::-webkit-scrollbar {
+  width: 8px;
+}
+#remoteFiles::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #00c6ff, #0072ff);
+  border-radius: 4px;
+}
+
+/* List item hover ve focus efektlerini sınırlandır */
+#remoteFiles li:focus,
+#remoteFiles li:active {
+  outline: none;
+  box-shadow: none;
+}
+
+
+
+</style>
+</head>
+<body>
+
+<div id="switchBtns">
+  <button id="termBtn" class="active">Terminal</button>
+  <button id="fmBtn">File Manager</button>
+</div>
+
+<!-- Terminal Panel -->
+<div id="terminalPanel" class="panel">
+  <div id="terminal"></div>
+</div>
+
+
+<div id="fmPanel" class="panel">
+  <div class="fm-sidebar-container">
+    <!-- Sidebar -->
+    <div class="fm-sidebar">
+      <h3>Local Files</h3>
+      <div class="file-input-wrapper">
+        <label class="file-input-label" onclick="chooseFiles()">Choose File</label>
+        <label class="file-input-label" onclick="chooseFolder()">Choose Folder</label>
+        <input type="file" id="localPicker" multiple style="display:none;">
+      </div>
+      <ul id="localFiles"></ul>
+      <button id="uploadAllBtn" class="action-btn">Upload all</button>
+    </div>
+
+    <!-- Main panel -->
+    <div class="fm-main">
+      <h3>Remote Files</h3>
+      <input type="text" id="remoteSearch" class="search-input" placeholder="Search files">
+      <div class="actions">
+        <button id="downloadSelectedBtn" class="action-btn">Download Chosen(s)</button>
+        <button id="deleteSelectedBtn" class="action-btn">Delete Chosen(s)</button>
+      </div>
+      <ul id="remoteFiles"></ul>
+    </div>
+  </div>
+</div>
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/xterm/lib/xterm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
+<script src="script.js"></script>
+<script>
+
+
+  window.token = new URLSearchParams(window.location.search).get("token");
+  if (!window.token) {
+    alert("Token missing! Go back to login.");
+    window.location.href = "login.html";
+  }
+
+  const termBtn = document.getElementById("termBtn");
+  const fmBtn = document.getElementById("fmBtn");
+  const terminalPanel = document.getElementById("terminalPanel");
+  const fmPanel = document.getElementById("fmPanel");
+
+  function showTerminal(){
+    terminalPanel.style.display = "flex";
+    fmPanel.style.display = "none";
+    termBtn.classList.add("active");
+    fmBtn.classList.remove("active");
+    if(window.fitAddon) fitAddon.fit();
+  }
+
+  function showFileManager(){
+    terminalPanel.style.display = "none";
+    fmPanel.style.display = "flex";
+    fmBtn.classList.add("active");
+    termBtn.classList.remove("active");
+  }
+
+  termBtn.onclick = showTerminal;
+  fmBtn.onclick = showFileManager;
+
+  const term = new Terminal({ cursorBlink:true, theme:{background:"#000", foreground:"#00ffea", cursor:"#00ffea"} });
+  const fitAddon = new FitAddon.FitAddon();
+  window.fitAddon = fitAddon;
+  term.loadAddon(fitAddon);
+  term.open(document.getElementById("terminal"));
+  fitAddon.fit();
+  window.addEventListener("resize",()=>fitAddon.fit());
+
+  const wsTerm = new WebSocket(`ws://${location.host}/?token=${window.token}&type=terminal`);
+  wsTerm.onmessage = e=>term.write(e.data);
+  term.onData(d=>wsTerm.send(d));
+
+  showTerminal(); // Başlangıç terminal
+</script>
+
+</body>
+</html>

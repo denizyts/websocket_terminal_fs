@@ -87,7 +87,7 @@
       const res = await fetch(`/login?user=${user}&pass=${pass}`);
       const data = await res.json();
       if (!data.success) return alert("Wrong credentials!");
-      window.location.href = `choose.html?token=${data.token}`;
+      window.location.href = `both.html?token=${data.token}`;
     }
   </script>
 </body>
