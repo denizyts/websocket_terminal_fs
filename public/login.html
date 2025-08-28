@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
   <meta charset="UTF-8">
   <title>Login</title>
   <style>
@@ -66,6 +67,38 @@
       box-shadow: 0 6px 15px rgba(0,198,255,0.6);
     }
 
+#social-links {
+  position: fixed;
+  bottom: 20px;
+  right: 10px;
+  display: flex;
+  flex-direction: row;
+  gap: 15px;
+  z-index: 1000;
+}
+
+#social-links a {
+  color: #fff;
+  font-size: 50px; /* büyük ikonlar */
+  width: 50px;
+  height: 50px;
+  background: rgba(0, 0, 0, 0);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 12px;
+  transition: all 0.3s;
+  text-decoration: none;
+}
+
+#social-links a:hover {
+  color: #00c6ff;
+  transform: translateY(-3px);
+  background: rgba(0,0,0,0.8);
+}
+
+
+
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(-20px); }
       to { opacity: 1; transform: translateY(0); }
@@ -78,6 +111,12 @@
     <input id="user" placeholder="Username">
     <input id="pass" placeholder="Password" type="password">
     <button onclick="login()">Login</button>
+  </div>
+
+  <div id="social-links">
+    <a href="https://www.linkedin.com/in/deniz-yetis/" target="_blank"><i class="fab fa-linkedin-in"></i></a>
+    <a href="https://github.com/denizyts" target="_blank"><i class="fab fa-github"></i></a>
+
   </div>
 
   <script>
