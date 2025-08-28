@@ -27,23 +27,25 @@ body {
 
 /* Switch Butonları */
 /* Switch Butonları - Modern Toggle Style */
+/* Switch Butonları - Kompakt Versiyon */
 #switchBtns {
   display: inline-flex;
-  border-radius: 50px;
+  border-radius: 40px; /* biraz daha yuvarlak */
   overflow: hidden;
   border: 2px solid rgba(255,255,255,0.3);
-  margin: 15px;
+  margin: 10px; /* margin biraz küçültüldü */
 }
 
 #switchBtns button {
   flex: 1;
-  padding: 10px 25px;
+  padding: 6px 15px; /* padding küçültüldü */
   border: none;
   background: rgba(255,255,255,0.1);
   color: #fff;
   font-weight: 600;
+  font-size: 0.85rem; /* font boyutu küçültüldü */
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.3s ease;
   backdrop-filter: blur(8px);
 }
 
@@ -54,9 +56,10 @@ body {
 #switchBtns button.active {
   background: linear-gradient(135deg, #00c6ff, #0072ff);
   color: #fff;
-  box-shadow: 0 4px 15px rgba(0,198,255,0.6);
+  box-shadow: 0 3px 10px rgba(0,198,255,0.6); /* gölge biraz küçültüldü */
   transform: scale(1.05);
 }
+
 
 
 /* Panel */
@@ -218,8 +221,6 @@ li button:hover { box-shadow: 0 4px 10px rgba(0,198,255,0.5); }
   box-shadow: none;
 }
 
-
-
 </style>
 </head>
 <body>
@@ -261,8 +262,6 @@ li button:hover { box-shadow: 0 4px 10px rgba(0,198,255,0.5); }
     </div>
   </div>
 </div>
-
-
 
 <script src="https://cdn.jsdelivr.net/npm/xterm/lib/xterm.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit/lib/xterm-addon-fit.js"></script>

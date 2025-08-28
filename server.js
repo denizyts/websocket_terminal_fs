@@ -6,7 +6,6 @@ const pty = require("node-pty");
 const crypto = require('crypto');
 const fs = require("fs");
 const archiver = require("archiver");
-const mime = require("mime");
 
 const app = express();
 const server = http.createServer(app);
